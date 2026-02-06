@@ -18,7 +18,7 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [process.env.ALLOWED_ORIGINS, true],
-  })
+  }),
 );
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -31,14 +31,24 @@ app.use("/api/auth", authRoutes);
 app.use("/api/posts", verifyAuthToken, postsRoutes);
 app.use("/api/profile", verifyAuthToken, profileRoutes);
 
+console.log(
+  "Attempting to connect with URI:",
+  MONGO_URI ? "URI is defined" : "URI IS UNDEFINED!",
+);
+
 mongoose
   .connect(MONGO_URI)
   .then(() => {
-    console.log("Connected to MongoDB");
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+    console.log("✅ Connected to MongoDB");
+    app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
   })
   .catch((err) => {
-    console.error("MongoDB connection error", err);
+    console.error("❌ MongoDB connection error details:");
+    console.error(
+      "Reason:",
+      err.reason ? err.reason.type : "No reason provided",
+    );
+    console.error("Full Error:", err.message);
   });
 
 module.exports = app;

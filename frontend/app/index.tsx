@@ -6,7 +6,6 @@ import { theme } from "@/constants/theme";
 export default function Index() {
   const { user, isLoading } = useAuth();
 
-  // Show loading indicator while checking auth state
   if (isLoading) {
     return (
       <View
@@ -22,6 +21,5 @@ export default function Index() {
     );
   }
 
-  // Once loaded, redirect based on auth state
   return <Redirect href={user ? "/(tabs)/home" : "/(auth)/login"} />;
 }
