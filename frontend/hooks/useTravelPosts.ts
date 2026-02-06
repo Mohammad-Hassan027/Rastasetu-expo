@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import createContextHook from "@nkzw/create-context-hook";
 import { postsApi } from "../lib/api";
-import { useAuth } from "./AuthContext"; // Import useAuth
+import { useAuth } from "./AuthContext";
 
 export interface User {
   id: string;
@@ -43,7 +43,7 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user: currentUser } = useAuth(); // Get user from AuthContext
+  const { user: currentUser } = useAuth();
 
   const fetchPosts = useCallback(async () => {
     try {
@@ -53,8 +53,8 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
       setPosts(
         allPosts.sort(
           (a: Post, b: Post) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        )
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        ),
       );
     } catch (err) {
       console.error("Error fetching posts:", err);
@@ -108,6 +108,7 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
   }, []);
 
   const likePost = useCallback(async (postId: string) => {
+    // Optimistic update
     setPosts((prevPosts) =>
       prevPosts.map((post) =>
         post.id === postId
@@ -116,11 +117,14 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
               isLiked: !post.isLiked,
               likes: post.isLiked ? post.likes - 1 : post.likes + 1,
             }
-          : post
-      )
+          : post,
+      ),
     );
-    await postsApi.likePost(postId).catch(() => {
-      // Revert optimistic update on error
+
+    try {
+      await postsApi.likePost(postId);
+    } catch (error) {
+      // Revert on error
       setPosts((prevPosts) =>
         prevPosts.map((post) =>
           post.id === postId
@@ -129,10 +133,11 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
                 isLiked: !post.isLiked,
                 likes: post.isLiked ? post.likes + 1 : post.likes - 1,
               }
-            : post
-        )
+            : post,
+        ),
       );
-    });
+      throw error;
+    }
   }, []);
 
   const addComment = useCallback(
@@ -144,30 +149,99 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
         throw new Error("You must be logged in to comment");
       }
 
-      const newComment: Comment = {
-        id: Date.now().toString(),
-        userId: currentUser.id,
-        userName: currentUser.name || "Anonymous",
-        userAvatar:
-          currentUser.avatar ||
-          "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
-        text: commentText.trim(),
-        createdAt: new Date().toISOString(),
-      };
+      try {
+        const response = await postsApi.addComment(postId, commentText.trim());
+        const newComment = response.comment;
 
-      setPosts((prevPosts) =>
-        prevPosts.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                comments: [...post.comments, newComment],
-              }
-            : post
-        )
-      );
-      return newComment;
+        // Update local state
+        setPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  comments: [...post.comments, newComment],
+                }
+              : post,
+          ),
+        );
+
+        return newComment;
+      } catch (error) {
+        console.error("Error adding comment:", error);
+        throw error;
+      }
     },
-    [currentUser]
+    [currentUser],
+  );
+
+  const deleteComment = useCallback(
+    async (postId: string, commentId: string) => {
+      try {
+        await postsApi.deleteComment(postId, commentId);
+
+        // Update local state
+        setPosts((prevPosts) =>
+          prevPosts.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  comments: post.comments.filter((c) => c.id !== commentId),
+                }
+              : post,
+          ),
+        );
+      } catch (error) {
+        console.error("Error deleting comment:", error);
+        throw error;
+      }
+    },
+    [],
+  );
+
+  const deletePost = useCallback(async (postId: string) => {
+    try {
+      await postsApi.deletePost(postId);
+
+      // Remove from local state
+      setPosts((prevPosts) => prevPosts.filter((post) => post.id !== postId));
+    } catch (error) {
+      console.error("Error deleting post:", error);
+      throw error;
+    }
+  }, []);
+
+  const updatePost = useCallback(
+    async (
+      postId: string,
+      updates: {
+        description?: string;
+        location?: string;
+        hashtags?: string;
+        image?: string;
+      },
+    ) => {
+      try {
+        let updateData: any = { ...updates };
+
+        // Convert image URI to base64 if provided
+        if (updates.image && !updates.image.startsWith("http")) {
+          updateData.image = await processImageForUpload(updates.image);
+        }
+
+        const updatedPost = await postsApi.updatePost(postId, updateData);
+
+        // Update local state
+        setPosts((prevPosts) =>
+          prevPosts.map((post) => (post.id === postId ? updatedPost : post)),
+        );
+
+        return updatedPost;
+      } catch (error) {
+        console.error("Error updating post:", error);
+        throw error;
+      }
+    },
+    [],
   );
 
   useEffect(() => {
@@ -184,6 +258,9 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
       createPost,
       likePost,
       addComment,
+      deleteComment,
+      deletePost,
+      updatePost,
     }),
     [
       posts,
@@ -194,6 +271,9 @@ export const [TravelPostsProvider, useTravelPosts] = createContextHook(() => {
       createPost,
       likePost,
       addComment,
-    ]
+      deleteComment,
+      deletePost,
+      updatePost,
+    ],
   );
 });

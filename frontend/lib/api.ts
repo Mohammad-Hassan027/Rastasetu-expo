@@ -1,7 +1,7 @@
 import { auth } from "../config/firebase";
 
-// Use environment variable or fallback for local development
 const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
+
 interface ApiOptions {
   method?: string;
   body?: any;
@@ -13,24 +13,18 @@ interface ApiRequestOptions extends ApiOptions {
 
 export async function apiRequest(
   endpoint: string,
-  options: ApiRequestOptions = {}
+  options: ApiRequestOptions = {},
 ) {
   try {
-    // const auth = getAuth();
     const user = auth.currentUser;
-
-    // Define public endpoints that DO NOT require a token
     const publicEndpoints = ["/auth/login", "/auth/register"];
-
     let token: string | null = null;
 
-    // If there is a user and the endpoint is NOT public, get the token.
     if (user && !publicEndpoints.includes(endpoint)) {
       try {
         token = await user.getIdToken();
       } catch (tokenError) {
         console.error("Failed to get ID token:", tokenError);
-        // If token fetch fails, the user session is likely invalid
         if (options.onUnauthorized) {
           options.onUnauthorized();
         }
@@ -45,7 +39,6 @@ export async function apiRequest(
     };
 
     if (token) {
-      // Only attach Authorization header when a token exists
       headers.Authorization = `Bearer ${token}`;
     }
 
@@ -53,12 +46,11 @@ export async function apiRequest(
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(30000), // 30 second timeout
+      signal: AbortSignal.timeout(30000),
     };
 
     const response = await fetch(`${API_URL}${endpoint}`, config);
 
-    // Handle HTTP error responses
     if (!response.ok) {
       if (response.status === 401) {
         if (options.onUnauthorized) {
@@ -90,30 +82,36 @@ export async function apiRequest(
           throw new Error("Too many requests. Please try again later.");
         case 500:
           throw new Error(
-            "An unexpected server error occurred. Please try again later."
+            "An unexpected server error occurred. Please try again later.",
           );
         default:
           throw new Error(`Request failed: ${errorMessage}`);
       }
     }
 
-    // Attempt to parse JSON, handle cases where response is empty or not JSON
     try {
       return await response.json();
     } catch (parseError) {
-      // If parsing fails, it might be a successful response with no body (e.g., 204 No Content)
       return null;
     }
   } catch (error) {
+    // Network error
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error("Network error. Please check your internet connection.");
-    } else if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("Request timed out. Please try again.");
-    } else if (error instanceof Error) {
-      throw error;
-    } else {
-      throw new Error("An unexpected error occurred.");
     }
+
+    // Timeout error (works in both web and React Native)
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error("Request timed out. Please try again.");
+    }
+
+    // Re-throw existing Error instances
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    // Unexpected errors
+    throw new Error("An unexpected error occurred.");
   }
 }
 
@@ -121,6 +119,7 @@ export async function apiRequest(
 export const postsApi = {
   getAllPosts: (onUnauthorized?: () => void) =>
     apiRequest("/posts", { onUnauthorized }),
+
   createPost: (
     data: {
       description: string;
@@ -128,7 +127,7 @@ export const postsApi = {
       image: string | undefined;
       hashtags: string;
     },
-    onUnauthorized?: () => void
+    onUnauthorized?: () => void,
   ) => apiRequest("/posts", { method: "POST", body: data, onUnauthorized }),
 
   updatePost: (
@@ -137,8 +136,8 @@ export const postsApi = {
       description?: string;
       location?: string;
       image?: string;
-      hashtags?: string[];
-    }
+      hashtags?: string;
+    },
   ) => apiRequest(`/posts/${postId}`, { method: "PUT", body: data }),
 
   deletePost: (postId: string) =>
@@ -146,6 +145,17 @@ export const postsApi = {
 
   likePost: (postId: string) =>
     apiRequest(`/posts/${postId}/like`, { method: "POST" }),
+
+  addComment: (postId: string, text: string) =>
+    apiRequest(`/posts/${postId}/comments`, {
+      method: "POST",
+      body: { text },
+    }),
+
+  deleteComment: (postId: string, commentId: string) =>
+    apiRequest(`/posts/${postId}/comments/${commentId}`, {
+      method: "DELETE",
+    }),
 };
 
 // Profile API
