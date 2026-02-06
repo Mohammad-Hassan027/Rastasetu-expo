@@ -1,6 +1,17 @@
+import { Platform } from "react-native";
 import { auth } from "../config/firebase";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:5000/api";
+const getApiUrl = () => {
+  if (__DEV__) {
+    return Platform.OS === "android"
+      ? "http://10.196.173.179:5000/api"
+      : "http://localhost:5000/api";
+  }
+
+  return process.env.EXPO_PUBLIC_API_URL;
+};
+
+export const API_URL = getApiUrl();
 
 interface ApiOptions {
   method?: string;
