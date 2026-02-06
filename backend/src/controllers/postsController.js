@@ -325,3 +325,109 @@ exports.likePost = async (req, res) => {
     res.status(500).json({ message: "Failed to like post" });
   }
 };
+
+exports.addComment = async (req, res) => {
+  try {
+    const { text } = req.body;
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ message: "Comment text is required" });
+    }
+
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const newComment = {
+      userId: user._id,
+      userName: user.name || "Anonymous",
+      userAvatar:
+        user.avatar ||
+        "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150",
+      text: text.trim(),
+      createdAt: new Date(),
+    };
+
+    post.comments.push(newComment);
+    await post.save();
+
+    // Get the newly added comment with its _id
+    const addedComment = post.comments[post.comments.length - 1];
+
+    res.status(201).json({
+      success: true,
+      comment: {
+        id: addedComment._id.toString(),
+        userId: addedComment.userId.toString(),
+        userName: addedComment.userName,
+        userAvatar: addedComment.userAvatar,
+        text: addedComment.text,
+        createdAt: addedComment.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("Add comment error:", err);
+
+    if (err.kind === "ObjectId") {
+      return res.status(400).json({ message: "Invalid post ID" });
+    }
+
+    res.status(500).json({ message: "Failed to add comment" });
+  }
+};
+
+exports.deleteComment = async (req, res) => {
+  try {
+    const { commentId } = req.params;
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    const user = await User.findOne({ firebaseUid: req.user.uid });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const comment = post.comments.id(commentId);
+
+    if (!comment) {
+      return res.status(404).json({ message: "Comment not found" });
+    }
+
+    // Check if user owns the comment or the post
+    if (
+      comment.userId.toString() !== user._id.toString() &&
+      post.user.toString() !== user._id.toString()
+    ) {
+      return res.status(403).json({
+        message: "You don't have permission to delete this comment",
+      });
+    }
+
+    comment.deleteOne();
+    await post.save();
+
+    res.json({
+      success: true,
+      message: "Comment deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete comment error:", err);
+
+    if (err.kind === "ObjectId") {
+      return res.status(400).json({ message: "Invalid ID" });
+    }
+
+    res.status(500).json({ message: "Failed to delete comment" });
+  }
+};

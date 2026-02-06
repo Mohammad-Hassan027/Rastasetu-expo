@@ -9,5 +9,11 @@ router.get("/:id", verifyAuthToken, postsController.getPost);
 router.put("/:id", verifyAuthToken, postsController.updatePost);
 router.delete("/:id", verifyAuthToken, postsController.deletePost);
 router.post("/:id/like", verifyAuthToken, postsController.likePost);
+router.post("/:id/comments", verifyAuthToken, postsController.addComment);
+router.delete(
+  "/:id/comments/:commentId",
+  verifyAuthToken,
+  postsController.deleteComment,
+);
 
 module.exports = router;
