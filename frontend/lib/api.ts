@@ -11,6 +11,28 @@ interface ApiRequestOptions extends ApiOptions {
   onUnauthorized?: () => void;
 }
 
+// Custom timeout implementation for React Native
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit,
+  timeout: number = 30000,
+) => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+};
+
 export async function apiRequest(
   endpoint: string,
   options: ApiRequestOptions = {},
@@ -46,10 +68,13 @@ export async function apiRequest(
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(30000),
     };
 
-    const response = await fetch(`${API_URL}${endpoint}`, config);
+    const response = await fetchWithTimeout(
+      `${API_URL}${endpoint}`,
+      config,
+      30000,
+    );
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -95,23 +120,15 @@ export async function apiRequest(
       return null;
     }
   } catch (error) {
-    // Network error
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error("Network error. Please check your internet connection.");
-    }
-
-    // Timeout error (works in both web and React Native)
-    if (error instanceof Error && error.name === "AbortError") {
+    } else if (error instanceof Error && error.name === "AbortError") {
       throw new Error("Request timed out. Please try again.");
-    }
-
-    // Re-throw existing Error instances
-    if (error instanceof Error) {
+    } else if (error instanceof Error) {
       throw error;
+    } else {
+      throw new Error("An unexpected error occurred.");
     }
-
-    // Unexpected errors
-    throw new Error("An unexpected error occurred.");
   }
 }
 

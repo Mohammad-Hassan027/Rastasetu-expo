@@ -28,18 +28,10 @@ function RootLayoutNav() {
 
   return (
     <>
-      <StatusBar style="light" backgroundColor="#111827" />
+      <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="modal"
-          options={{
-            presentation: "modal",
-            headerShown: true,
-            headerBackTitle: "Back",
-          }}
-        />
       </Stack>
     </>
   );

@@ -1,8 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { initializeAuth, getReactNativePersistence } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Your Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyD2OUk5HqDlkeXBLUiocbDTf4OGrxrteTM",
   authDomain: "rastasetu.firebaseapp.com",
@@ -10,12 +9,23 @@ const firebaseConfig = {
   storageBucket: "rastasetu.firebasestorage.app",
   messagingSenderId: "418007313547",
   appId: "1:418007313547:web:a76abc58cc7d09f030788e",
-  measurementId: "G-G6RRPQ5LKM"
+  measurementId: "G-G6RRPQ5LKM",
 };
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Get Auth instance
-export const auth = getAuth(app);
+// Initialize Auth with AsyncStorage persistence for React Native
+export const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(AsyncStorage),
+});
+
 export default app;
+
+// apiKey: "AIzaSyD2OUk5HqDlkeXBLUiocbDTf4OGrxrteTM",
+//   authDomain: "rastasetu.firebaseapp.com",
+//   projectId: "rastasetu",
+//   storageBucket: "rastasetu.firebasestorage.app",
+//   messagingSenderId: "418007313547",
+//   appId: "1:418007313547:web:a76abc58cc7d09f030788e",
+//   measurementId: "G-G6RRPQ5LKM"
