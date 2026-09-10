@@ -1,6 +1,4 @@
 # Rastasetu Backend
-
-"mongodb+srv://shaikhmohammadhassan027_db_user:a7vGTJJhYqgcLvSx@tourismappcluster.apsfbah.mongodb.net/"
 This is a minimal Node + Express backend for the Rastasetu app.
 
 Features:
