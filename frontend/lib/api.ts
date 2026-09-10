@@ -5,7 +5,9 @@ const getApiUrl = () => {
   const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "");
 
   if (configuredApiUrl) {
-    return configuredApiUrl;
+    return configuredApiUrl.endsWith("/api")
+      ? configuredApiUrl
+      : `${configuredApiUrl}/api`;
   }
 
   if (__DEV__) {
