@@ -8,6 +8,7 @@ export interface User {
   name: string;
   avatar: string;
   points: number;
+  email?: string;
 }
 
 export interface Comment {
