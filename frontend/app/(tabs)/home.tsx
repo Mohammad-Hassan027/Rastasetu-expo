@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Share,
+  Alert,
 } from "react-native";
 import {
   Heart,
@@ -18,13 +19,25 @@ import {
   MapPin,
   Send,
   RefreshCw,
+  Trash2,
 } from "lucide-react-native";
 import { useTravelPosts, Post, Comment } from "@/hooks/useTravelPosts";
+import { useAuth } from "@/hooks/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-  const { posts, loading, error, likePost, addComment, fetchPosts } =
-    useTravelPosts();
+  const {
+    posts,
+    loading,
+    error,
+    likePost,
+    addComment,
+    fetchPosts,
+    deletePost,
+    currentUser,
+  } = useTravelPosts();
+  const { user: authUser } = useAuth();
+  const user = currentUser || authUser;
   const insets = useSafeAreaInsets();
   const [expandedComments, setExpandedComments] = useState<Set<string>>(
     new Set()
@@ -33,6 +46,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
 
   const showError = (message: string) => {
     if (!message.trim()) return;
@@ -42,6 +56,54 @@ export default function HomeScreen() {
       setErrorMessage(message.trim());
     }
     setShowErrorModal(true);
+  };
+
+  const confirmDeletePost = (postId: string) => {
+    Alert.alert(
+      "Delete Post",
+      "Are you sure you want to delete this post? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleDeletePost(postId),
+        },
+      ]
+    );
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (deletingPostId) return;
+
+    setDeletingPostId(postId);
+    try {
+      await deletePost(postId);
+    } catch (err) {
+      showError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete post. Please try again."
+      );
+    } finally {
+      setDeletingPostId(null);
+    }
+  };
+
+  const isPostOwner = (post: Post) => {
+    if (!user) return false;
+    return Boolean(
+      (user.id &&
+        (user.id === post.user.id ||
+          user.id === (post.user as any).firebaseUid)) ||
+        (user.email &&
+          post.user.email &&
+          user.email.toLowerCase() === post.user.email.toLowerCase()) ||
+        (user.name && post.user.name && user.name === post.user.name)
+    );
   };
 
   const handleLike = async (postId: string) => {
@@ -144,6 +206,8 @@ export default function HomeScreen() {
   const renderPost = (post: Post) => {
     const isCommentsExpanded = expandedComments.has(post.id);
     const commentText = commentTexts[post.id] || "";
+    const isOwnPost = isPostOwner(post);
+    const isDeleting = deletingPostId === post.id;
 
     return (
       <View key={post.id} style={styles.postContainer}>
@@ -160,8 +224,26 @@ export default function HomeScreen() {
               <Text style={styles.location}>{post.location}</Text>
             </View>
           </View>
-          <View style={styles.pointsContainer}>
-            <Text style={styles.points}>{post.user.points}</Text>
+          <View style={styles.postHeaderRight}>
+            <View style={styles.pointsContainer}>
+              <Text style={styles.points}>{post.user.points}</Text>
+            </View>
+            {isOwnPost && (
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => confirmDeletePost(post.id)}
+                disabled={isDeleting}
+                accessibilityRole="button"
+                accessibilityLabel="Delete post"
+                testID={`delete-post-${post.id}`}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#ef4444" />
+                ) : (
+                  <Trash2 color="#ef4444" size={18} />
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -379,6 +461,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#6b7280",
     marginLeft: 4,
+  },
+  postHeaderRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  deleteButton: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: "rgba(239, 68, 68, 0.1)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   pointsContainer: {
     backgroundColor: "#22c55e",
