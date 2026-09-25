@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
     View,
     Text,
@@ -6,14 +6,40 @@ import {
     ScrollView,
     TouchableOpacity,
     Image,
+    Alert,
+    ActivityIndicator,
 } from "react-native";
 import { Award, Star, ChevronRight } from "lucide-react-native";
-import { useRewards } from "@/hooks/useRewards";
+import { useRewards, Reward } from "@/hooks/useRewards";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RewardsScreen() {
-    const { userPoints, availableRewards, badges } = useRewards();
+    const { userPoints, availableRewards, badges, redeemReward } = useRewards();
     const insets = useSafeAreaInsets();
+    const [redeemingId, setRedeemingId] = useState<string | null>(null);
+
+    const handleRedeem = async (reward: Reward) => {
+        if (redeemingId) return;
+
+        if (userPoints < reward.points) {
+            Alert.alert("Insufficient Points", "You do not have enough points.");
+            return;
+        }
+
+        setRedeemingId(reward.id);
+        try {
+            // Simulate brief processing delay for visual feedback and debouncing
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            const success = redeemReward(reward.id);
+            if (success) {
+                Alert.alert("Success", "Reward redeemed successfully.");
+            } else {
+                Alert.alert("Insufficient Points", "You do not have enough points.");
+            }
+        } finally {
+            setRedeemingId(null);
+        }
+    };
 
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -33,22 +59,39 @@ export default function RewardsScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Available Rewards</Text>
-                    {availableRewards.map((reward) => (
-                        <TouchableOpacity key={reward.id} style={styles.rewardCard}>
-                            <Image source={{ uri: reward.image }} style={styles.rewardImage} />
-                            <View style={styles.rewardInfo}>
-                                <Text style={styles.rewardName}>{reward.name}</Text>
-                                <Text style={styles.rewardDescription}>{reward.description}</Text>
-                                <View style={styles.rewardMeta}>
-                                    <Star color="#fbbf24" size={16} fill="#fbbf24" />
-                                    <Text style={styles.rewardPoints}>{reward.points} points</Text>
+                    {availableRewards.map((reward) => {
+                        const canRedeem = userPoints >= reward.points;
+                        const isRedeeming = redeemingId === reward.id;
+                        const isDisabled = !canRedeem || redeemingId !== null;
+
+                        return (
+                            <View key={reward.id} style={styles.rewardCard}>
+                                <Image source={{ uri: reward.image }} style={styles.rewardImage} />
+                                <View style={styles.rewardInfo}>
+                                    <Text style={styles.rewardName}>{reward.name}</Text>
+                                    <Text style={styles.rewardDescription}>{reward.description}</Text>
+                                    <View style={styles.rewardMeta}>
+                                        <Star color="#fbbf24" size={16} fill="#fbbf24" />
+                                        <Text style={styles.rewardPoints}>{reward.points} points</Text>
+                                    </View>
                                 </View>
+                                <TouchableOpacity
+                                    style={[styles.redeemButton, isDisabled && styles.redeemButtonDisabled]}
+                                    onPress={() => handleRedeem(reward)}
+                                    disabled={isDisabled}
+                                    activeOpacity={0.7}
+                                >
+                                    {isRedeeming ? (
+                                        <ActivityIndicator size="small" color="#ffffff" />
+                                    ) : (
+                                        <Text style={[styles.redeemText, !canRedeem && styles.redeemTextDisabled]}>
+                                            Redeem
+                                        </Text>
+                                    )}
+                                </TouchableOpacity>
                             </View>
-                            <TouchableOpacity style={styles.redeemButton}>
-                                <Text style={styles.redeemText}>Redeem</Text>
-                            </TouchableOpacity>
-                        </TouchableOpacity>
-                    ))}
+                        );
+                    })}
                 </View>
 
                 <View style={styles.section}>
@@ -185,11 +228,21 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 8,
+        minWidth: 80,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    redeemButtonDisabled: {
+        backgroundColor: "#374151",
+        opacity: 0.6,
     },
     redeemText: {
         fontSize: 14,
         fontWeight: "600",
         color: "#ffffff",
+    },
+    redeemTextDisabled: {
+        color: "#9ca3af",
     },
     badgesGrid: {
         flexDirection: "row",
