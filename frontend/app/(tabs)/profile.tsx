@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
 } from "react-native";
 import {
   Settings,
@@ -20,6 +22,7 @@ import {
   Award,
   MapPin,
   LogIn,
+  Edit3,
 } from "lucide-react-native";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,9 +30,16 @@ import { useAuth } from "@/hooks/AuthContext";
 import { router } from "expo-router";
 
 export default function ProfileScreen() {
-  const { stats } = useUserProfile();
+  const { user: profileUser, stats, updateProfile } = useUserProfile();
   const insets = useSafeAreaInsets();
-  const { logout, user, isLoading } = useAuth();
+  const { logout, user: authUser, isLoading } = useAuth();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [nameInput, setNameInput] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const displayedUser = profileUser || authUser;
+  const displayedName = profileUser?.name || authUser?.name || "User";
+  const displayedAvatar = profileUser?.avatar || authUser?.avatar;
 
   // Only show loading state during initial load
   if (isLoading) {
@@ -39,6 +49,39 @@ export default function ProfileScreen() {
       </View>
     );
   }
+
+  const handleOpenEditModal = () => {
+    setNameInput(displayedName);
+    setIsEditModalVisible(true);
+  };
+
+  const handleCloseEditModal = () => {
+    if (isSaving) return;
+    setIsEditModalVisible(false);
+  };
+
+  const handleSaveProfile = async () => {
+    const trimmedName = nameInput.trim();
+    if (!trimmedName) {
+      Alert.alert("Validation Error", "Name cannot be empty.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateProfile({ name: trimmedName });
+      setIsEditModalVisible(false);
+      Alert.alert("Success", "Profile name updated successfully.");
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : "Failed to update profile name. Please try again.";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleSettingsPress = () => {
     Alert.alert(
@@ -117,21 +160,32 @@ export default function ProfileScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.profileCard}>
-          <Image source={{ uri: user?.avatar }} style={styles.profileImage} />
-          <Text style={styles.userName}>{user?.name}</Text>
-          {/* <Text style={styles.userJoined}>Joined {user?.joinedYear}</Text> */}
+          <Image source={{ uri: displayedAvatar }} style={styles.profileImage} />
+          <Text style={styles.userName}>{displayedName}</Text>
+          {displayedUser && (
+            <TouchableOpacity
+              style={styles.editProfileButton}
+              onPress={handleOpenEditModal}
+              accessibilityRole="button"
+              accessibilityLabel="Edit Profile"
+              testID="edit-profile-button"
+            >
+              <Edit3 color="#22c55e" size={14} style={{ marginRight: 6 }} />
+              <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats?.trips}</Text>
+              <Text style={styles.statValue}>{stats?.trips || 0}</Text>
               <Text style={styles.statLabel}>Trips</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats?.points}</Text>
+              <Text style={styles.statValue}>{stats?.points || 0}</Text>
               <Text style={styles.statLabel}>Points</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{stats?.badges}</Text>
+              <Text style={styles.statValue}>{stats?.badges || 0}</Text>
               <Text style={styles.statLabel}>Badges</Text>
             </View>
           </View>
@@ -188,7 +242,7 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           ))}
 
-          {user ? (
+          {authUser ? (
             <TouchableOpacity
               style={[styles.menuItem, styles.logoutItem]}
               onPress={handleLogout}
@@ -223,6 +277,64 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={isEditModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseEditModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <Text style={styles.modalSubtitle}>Update your display name</Text>
+
+            <TextInput
+              style={styles.textInput}
+              value={nameInput}
+              onChangeText={setNameInput}
+              placeholder="Enter your name"
+              placeholderTextColor="#6b7280"
+              autoFocus
+              editable={!isSaving}
+              accessibilityLabel="Display name"
+              testID="edit-name-input"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={[styles.modalActionButton, styles.cancelButton]}
+                onPress={handleCloseEditModal}
+                disabled={isSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel edit"
+                testID="cancel-edit-profile-button"
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalActionButton,
+                  styles.saveButton,
+                  isSaving && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSaveProfile}
+                disabled={isSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Save profile name"
+                testID="save-profile-button"
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -386,5 +498,93 @@ const styles = StyleSheet.create({
   },
   loginText: {
     color: "#22c55e",
+  },
+  editProfileButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(34, 197, 94, 0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(34, 197, 94, 0.3)",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 6,
+    marginBottom: 20,
+  },
+  editProfileButtonText: {
+    color: "#22c55e",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "#1f2937",
+    borderRadius: 16,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: "#374151",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 4,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: "#9ca3af",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  textInput: {
+    backgroundColor: "#111827",
+    borderWidth: 1,
+    borderColor: "#374151",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: "#ffffff",
+    marginBottom: 24,
+  },
+  modalActions: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "flex-end",
+  },
+  modalActionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#374151",
+  },
+  cancelButtonText: {
+    color: "#d1d5db",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  saveButton: {
+    backgroundColor: "#22c55e",
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    color: "#ffffff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });
