@@ -40,11 +40,54 @@ export default function ProfileScreen() {
     );
   }
 
+  const handleSettingsPress = () => {
+    Alert.alert(
+      "Settings",
+      "Account and app preference settings will be available in an upcoming update."
+    );
+  };
+
   const menuItems = [
-    { icon: Bell, title: "Notifications", hasChevron: true },
-    { icon: Shield, title: "Privacy", hasChevron: true },
-    { icon: HelpCircle, title: "Help", hasChevron: true },
-    { icon: Info, title: "About", hasChevron: true },
+    {
+      icon: Bell,
+      title: "Notifications",
+      hasChevron: true,
+      onPress: () =>
+        Alert.alert(
+          "Notifications",
+          "Notification settings will be available soon."
+        ),
+    },
+    {
+      icon: Shield,
+      title: "Privacy",
+      hasChevron: true,
+      onPress: () =>
+        Alert.alert(
+          "Privacy",
+          "Your personal data is securely protected and only used for essential app functionality."
+        ),
+    },
+    {
+      icon: HelpCircle,
+      title: "Help",
+      hasChevron: true,
+      onPress: () =>
+        Alert.alert(
+          "Help & Support",
+          "For assistance or inquiries, please contact our support team at support@rastasetu.app."
+        ),
+    },
+    {
+      icon: Info,
+      title: "About",
+      hasChevron: true,
+      onPress: () =>
+        Alert.alert(
+          "About Rastasetu",
+          "Rastasetu v1.0.0\n\nA travel platform to connect travelers, share journeys, and earn exploration rewards."
+        ),
+    },
   ];
 
   const handleLogout = async () => {
@@ -63,7 +106,11 @@ export default function ProfileScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleSettingsPress}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+        >
           <Settings color="#ffffff" size={24} />
         </TouchableOpacity>
       </View>
@@ -124,7 +171,13 @@ export default function ProfileScreen() {
         <View style={styles.menuSection}>
           <Text style={styles.sectionTitle}>Settings</Text>
           {menuItems.map((item) => (
-            <TouchableOpacity key={item.title} style={styles.menuItem}>
+            <TouchableOpacity
+              key={item.title}
+              style={styles.menuItem}
+              onPress={item.onPress}
+              accessibilityRole="button"
+              accessibilityLabel={item.title}
+            >
               <View style={styles.menuItemLeft}>
                 <View style={styles.menuIcon}>
                   <item.icon color="#22c55e" size={20} />
@@ -139,6 +192,8 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={[styles.menuItem, styles.logoutItem]}
               onPress={handleLogout}
+              accessibilityRole="button"
+              accessibilityLabel="Log Out"
             >
               <View style={styles.menuItemLeft}>
                 <View style={[styles.menuIcon, styles.logoutIcon]}>
@@ -153,6 +208,8 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={[styles.menuItem, styles.loginItem]}
               onPress={() => router.push("/(auth)/login")}
+              accessibilityRole="button"
+              accessibilityLabel="Go to Login"
             >
               <View style={styles.menuItemLeft}>
                 <View style={[styles.menuIcon, styles.loginIcon]}>
