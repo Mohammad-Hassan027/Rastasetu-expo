@@ -32,6 +32,7 @@ export default function HomeScreen() {
     error,
     likePost,
     addComment,
+    deleteComment,
     fetchPosts,
     deletePost,
     currentUser,
@@ -47,6 +48,9 @@ export default function HomeScreen() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
+    null
+  );
 
   const showError = (message: string) => {
     if (!message.trim()) return;
@@ -93,6 +97,41 @@ export default function HomeScreen() {
     }
   };
 
+  const confirmDeleteComment = (postId: string, commentId: string) => {
+    Alert.alert(
+      "Delete Comment",
+      "Are you sure you want to delete this comment? This action cannot be undone.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => handleDeleteComment(postId, commentId),
+        },
+      ]
+    );
+  };
+
+  const handleDeleteComment = async (postId: string, commentId: string) => {
+    if (deletingCommentId) return;
+
+    setDeletingCommentId(commentId);
+    try {
+      await deleteComment(postId, commentId);
+    } catch (err) {
+      showError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete comment. Please try again."
+      );
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   const isPostOwner = (post: Post) => {
     if (!user) return false;
     return Boolean(
@@ -103,6 +142,16 @@ export default function HomeScreen() {
           post.user.email &&
           user.email.toLowerCase() === post.user.email.toLowerCase()) ||
         (user.name && post.user.name && user.name === post.user.name)
+    );
+  };
+
+  const isCommentOwner = (comment: Comment) => {
+    if (!user) return false;
+    return Boolean(
+      (user.id &&
+        (user.id === comment.userId ||
+          user.id === (comment as any).firebaseUid)) ||
+        (user.name && comment.userName && user.name === comment.userName)
     );
   };
 
@@ -189,19 +238,42 @@ export default function HomeScreen() {
     }
   };
 
-  const renderComment = (comment: Comment) => (
-    <View key={comment.id} style={styles.commentContainer}>
-      <Image
-        source={{ uri: comment.userAvatar }}
-        style={styles.commentAvatar}
-        resizeMode="cover"
-      />
-      <View style={styles.commentContent}>
-        <Text style={styles.commentUsername}>{comment.userName}</Text>
-        <Text style={styles.commentText}>{comment.text}</Text>
+  const renderComment = (post: Post, comment: Comment) => {
+    const isOwnPost = isPostOwner(post);
+    const isOwnComment = isCommentOwner(comment);
+    const canDelete = isOwnPost || isOwnComment;
+    const isDeleting = deletingCommentId === comment.id;
+
+    return (
+      <View key={comment.id} style={styles.commentContainer}>
+        <Image
+          source={{ uri: comment.userAvatar }}
+          style={styles.commentAvatar}
+          resizeMode="cover"
+        />
+        <View style={styles.commentContent}>
+          <Text style={styles.commentUsername}>{comment.userName}</Text>
+          <Text style={styles.commentText}>{comment.text}</Text>
+        </View>
+        {canDelete && (
+          <TouchableOpacity
+            style={styles.commentDeleteButton}
+            onPress={() => confirmDeleteComment(post.id, comment.id)}
+            disabled={isDeleting}
+            accessibilityRole="button"
+            accessibilityLabel="Delete comment"
+            testID={`delete-comment-${comment.id}`}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#ef4444" />
+            ) : (
+              <Trash2 color="#9ca3af" size={14} />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
-    </View>
-  );
+    );
+  };
 
   const renderPost = (post: Post) => {
     const isCommentsExpanded = expandedComments.has(post.id);
@@ -294,7 +366,7 @@ export default function HomeScreen() {
 
         {isCommentsExpanded && (
           <View style={styles.commentsSection}>
-            {post.comments.map(renderComment)}
+            {post.comments.map((comment) => renderComment(post, comment))}
 
             <View style={styles.addCommentContainer}>
               <TextInput
@@ -560,7 +632,14 @@ const styles = StyleSheet.create({
   },
   commentContainer: {
     flexDirection: "row",
+    alignItems: "flex-start",
     marginTop: 12,
+  },
+  commentDeleteButton: {
+    padding: 6,
+    marginLeft: 8,
+    borderRadius: 6,
+    alignSelf: "flex-start",
   },
   commentAvatar: {
     width: 32,
