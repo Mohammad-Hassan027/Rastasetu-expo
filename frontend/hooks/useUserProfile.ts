@@ -48,7 +48,7 @@ export function useUserProfile() {
     try {
       setLoading(true);
       const updatedProfile = await profileApi.updateProfile(updates);
-      setUser((prev) => (prev ? { ...prev, ...updatedProfile } : null));
+      setUser((prev) => (prev ? { ...prev, ...updatedProfile } : updatedProfile));
       return updatedProfile;
     } catch (err) {
       console.error("Error updating profile:", err);
