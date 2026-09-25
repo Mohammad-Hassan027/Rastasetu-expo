@@ -14,7 +14,7 @@ import { useRewards, Reward } from "@/hooks/useRewards";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function RewardsScreen() {
-    const { userPoints, availableRewards, badges, redeemReward } = useRewards();
+    const { userPoints, availableRewards, badges, loading, redeemReward } = useRewards();
     const insets = useSafeAreaInsets();
     const [redeemingId, setRedeemingId] = useState<string | null>(null);
 
@@ -41,6 +41,15 @@ export default function RewardsScreen() {
         }
     };
 
+    if (loading) {
+        return (
+            <View style={[styles.container, styles.centerContent, { paddingTop: insets.top }]}>
+                <ActivityIndicator size="large" color="#22c55e" />
+                <Text style={styles.loadingText}>Loading rewards...</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.header}>
@@ -59,69 +68,81 @@ export default function RewardsScreen() {
 
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Available Rewards</Text>
-                    {availableRewards.map((reward) => {
-                        const canRedeem = userPoints >= reward.points;
-                        const isRedeeming = redeemingId === reward.id;
-                        const isDisabled = !canRedeem || redeemingId !== null;
+                    {availableRewards.length === 0 ? (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyCardText}>No rewards available right now.</Text>
+                        </View>
+                    ) : (
+                        availableRewards.map((reward) => {
+                            const canRedeem = userPoints >= reward.points;
+                            const isRedeeming = redeemingId === reward.id;
+                            const isDisabled = !canRedeem || redeemingId !== null;
 
-                        return (
-                            <View key={reward.id} style={styles.rewardCard}>
-                                <Image source={{ uri: reward.image }} style={styles.rewardImage} />
-                                <View style={styles.rewardInfo}>
-                                    <Text style={styles.rewardName}>{reward.name}</Text>
-                                    <Text style={styles.rewardDescription}>{reward.description}</Text>
-                                    <View style={styles.rewardMeta}>
-                                        <Star color="#fbbf24" size={16} fill="#fbbf24" />
-                                        <Text style={styles.rewardPoints}>{reward.points} points</Text>
+                            return (
+                                <View key={reward.id} style={styles.rewardCard}>
+                                    <Image source={{ uri: reward.image }} style={styles.rewardImage} />
+                                    <View style={styles.rewardInfo}>
+                                        <Text style={styles.rewardName}>{reward.name}</Text>
+                                        <Text style={styles.rewardDescription}>{reward.description}</Text>
+                                        <View style={styles.rewardMeta}>
+                                            <Star color="#fbbf24" size={16} fill="#fbbf24" />
+                                            <Text style={styles.rewardPoints}>{reward.points} points</Text>
+                                        </View>
                                     </View>
+                                    <TouchableOpacity
+                                        style={[styles.redeemButton, isDisabled && styles.redeemButtonDisabled]}
+                                        onPress={() => handleRedeem(reward)}
+                                        disabled={isDisabled}
+                                        activeOpacity={0.7}
+                                    >
+                                        {isRedeeming ? (
+                                            <ActivityIndicator size="small" color="#ffffff" />
+                                        ) : (
+                                            <Text style={[styles.redeemText, !canRedeem && styles.redeemTextDisabled]}>
+                                                Redeem
+                                            </Text>
+                                        )}
+                                    </TouchableOpacity>
                                 </View>
-                                <TouchableOpacity
-                                    style={[styles.redeemButton, isDisabled && styles.redeemButtonDisabled]}
-                                    onPress={() => handleRedeem(reward)}
-                                    disabled={isDisabled}
-                                    activeOpacity={0.7}
-                                >
-                                    {isRedeeming ? (
-                                        <ActivityIndicator size="small" color="#ffffff" />
-                                    ) : (
-                                        <Text style={[styles.redeemText, !canRedeem && styles.redeemTextDisabled]}>
-                                            Redeem
-                                        </Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        );
-                    })}
+                            );
+                        })
+                    )}
                 </View>
 
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Badges</Text>
-                    <View style={styles.badgesGrid}>
-                        {badges.map((badge) => (
-                            <View key={badge.id} style={[styles.badgeCard, !badge.earned && styles.badgeCardLocked]}>
-                                <View style={[styles.badgeIcon, { backgroundColor: badge.color }]}>
-                                    <Award color="#ffffff" size={24} />
-                                </View>
-                                <Text style={styles.badgeName}>{badge.name}</Text>
-                                <Text style={styles.badgeDescription}>{badge.description}</Text>
-                                {badge.earned && (
-                                    <View style={styles.earnedBadge}>
-                                        <Text style={styles.earnedText}>Earned</Text>
+                    {badges.length === 0 ? (
+                        <View style={styles.emptyCard}>
+                            <Text style={styles.emptyCardText}>No badges available right now.</Text>
+                        </View>
+                    ) : (
+                        <View style={styles.badgesGrid}>
+                            {badges.map((badge) => (
+                                <View key={badge.id} style={[styles.badgeCard, !badge.earned && styles.badgeCardLocked]}>
+                                    <View style={[styles.badgeIcon, { backgroundColor: badge.color }]}>
+                                        <Award color="#ffffff" size={24} />
                                     </View>
-                                )}
-                                {!badge.earned && badge.progress && (
-                                    <View style={styles.progressContainer}>
-                                        <View style={styles.progressBar}>
-                                            <View
-                                                style={[styles.progressFill, { width: `${badge.progress}%` }]}
-                                            />
+                                    <Text style={styles.badgeName}>{badge.name}</Text>
+                                    <Text style={styles.badgeDescription}>{badge.description}</Text>
+                                    {badge.earned && (
+                                        <View style={styles.earnedBadge}>
+                                            <Text style={styles.earnedText}>Earned</Text>
                                         </View>
-                                        <Text style={styles.progressText}>{badge.progress}%</Text>
-                                    </View>
-                                )}
-                            </View>
-                        ))}
-                    </View>
+                                    )}
+                                    {!badge.earned && badge.progress && (
+                                        <View style={styles.progressContainer}>
+                                            <View style={styles.progressBar}>
+                                                <View
+                                                    style={[styles.progressFill, { width: `${badge.progress}%` }]}
+                                                />
+                                            </View>
+                                            <Text style={styles.progressText}>{badge.progress}%</Text>
+                                        </View>
+                                    )}
+                                </View>
+                            ))}
+                        </View>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -310,5 +331,26 @@ const styles = StyleSheet.create({
     progressText: {
         fontSize: 12,
         color: "#6b7280",
+    },
+    centerContent: {
+        justifyContent: "center",
+        alignItems: "center",
+    },
+    loadingText: {
+        fontSize: 16,
+        color: "#d1d5db",
+        marginTop: 16,
+    },
+    emptyCard: {
+        backgroundColor: "#1f2937",
+        borderRadius: 12,
+        padding: 24,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    emptyCardText: {
+        fontSize: 14,
+        color: "#9ca3af",
+        textAlign: "center",
     },
 });
