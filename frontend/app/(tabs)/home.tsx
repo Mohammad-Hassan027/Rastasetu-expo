@@ -9,11 +9,12 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  Share,
 } from "react-native";
 import {
   Heart,
   MessageCircle,
-  Share,
+  Share as ShareIcon,
   MapPin,
   Send,
   RefreshCw,
@@ -48,6 +49,46 @@ export default function HomeScreen() {
       await likePost(postId);
     } catch {
       showError("Failed to like post");
+    }
+  };
+
+  const handleShare = async (post: Post) => {
+    try {
+      const contentParts: string[] = [];
+      if (post.description?.trim()) {
+        contentParts.push(post.description.trim());
+      }
+      if (post.location?.trim()) {
+        contentParts.push(`Location: ${post.location.trim()}`);
+      }
+      if (post.hashtags?.trim()) {
+        contentParts.push(post.hashtags.trim());
+      }
+
+      const message = contentParts.join("\n\n");
+      if (!message) return;
+
+      const result = await Share.share({
+        message,
+        title: post.description || "Travel Post",
+      });
+
+      if (result.action === Share.sharedAction) {
+        // Post shared successfully
+      } else if (result.action === Share.dismissedAction) {
+        // User dismissed/cancelled sharing on iOS
+      }
+    } catch (err: unknown) {
+      if (
+        err instanceof Error &&
+        (err.name === "AbortError" ||
+          err.message.toLowerCase().includes("cancel") ||
+          err.message.toLowerCase().includes("abort"))
+      ) {
+        // User cancelled sharing
+        return;
+      }
+      showError("Failed to share post. Please try again.");
     }
   };
 
@@ -153,8 +194,12 @@ export default function HomeScreen() {
             <MessageCircle color="#6b7280" size={24} />
             <Text style={styles.actionText}>{post.comments.length}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <Share color="#6b7280" size={24} />
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => handleShare(post)}
+            testID={`share-button-${post.id}`}
+          >
+            <ShareIcon color="#6b7280" size={24} />
           </TouchableOpacity>
         </View>
 
