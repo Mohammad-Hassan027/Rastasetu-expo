@@ -34,7 +34,7 @@ interface ApiRequestOptions extends ApiOptions {
 const fetchWithTimeout = async (
   url: string,
   options: RequestInit,
-  timeout: number = 30000,
+  timeout: number = 60000,
 ) => {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -141,8 +141,13 @@ export async function apiRequest(
   } catch (error) {
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       throw new Error("Network error. Please check your internet connection.");
-    } else if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Request timed out. Please try again.");
+    } else if (
+      error instanceof Error &&
+      (error.name === "AbortError" ||
+        error.message?.includes("canceled") ||
+        error.message?.includes("aborted"))
+    ) {
+      throw new Error("Request timed out. The server might be waking up or unreachable. Please try again.");
     } else if (error instanceof Error) {
       throw error;
     } else {
