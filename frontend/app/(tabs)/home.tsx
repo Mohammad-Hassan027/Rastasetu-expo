@@ -24,6 +24,7 @@ import {
 import { useTravelPosts, Post, Comment } from "@/hooks/useTravelPosts";
 import { useAuth } from "@/hooks/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 
 export default function HomeScreen() {
   const {
@@ -228,6 +229,7 @@ export default function HomeScreen() {
   };
 
   const onRefresh = async () => {
+    if (refreshing) return;
     setRefreshing(true);
     try {
       await fetchPosts();
@@ -442,8 +444,31 @@ export default function HomeScreen() {
           <RefreshCw color={refreshing ? "#6b7280" : "#22c55e"} size={20} />
         </TouchableOpacity>
       </View>
-      <ScrollView style={styles.feed} showsVerticalScrollIndicator={false}>
-        {posts.map((post) => renderPost(post))}
+      <ScrollView
+        style={styles.feed}
+        contentContainerStyle={
+          posts.length === 0 ? styles.emptyFeedContainer : undefined
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {posts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyTitle}>No travel posts yet.</Text>
+            <Text style={styles.emptySubtitle}>
+              Be the first to share your journey.
+            </Text>
+            <TouchableOpacity
+              style={styles.createPostButton}
+              onPress={() => router.push("/(tabs)/create")}
+              accessibilityRole="button"
+              accessibilityLabel="Create Post"
+            >
+              <Text style={styles.createPostButtonText}>Create Post</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          posts.map((post) => renderPost(post))
+        )}
       </ScrollView>
 
       <Modal
@@ -496,6 +521,41 @@ const styles = StyleSheet.create({
   },
   feed: {
     flex: 1,
+  },
+  emptyFeedContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#ffffff",
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 15,
+    color: "#9ca3af",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  createPostButton: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  createPostButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
   },
   postContainer: {
     backgroundColor: "#1f2937",
