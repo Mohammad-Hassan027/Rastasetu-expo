@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-interface Reward {
+export interface Reward {
     id: string;
     name: string;
     description: string;
@@ -9,7 +9,7 @@ interface Reward {
     category: string;
 }
 
-interface Badge {
+export interface Badge {
     id: string;
     name: string;
     description: string;
@@ -108,12 +108,14 @@ export function useRewards() {
         }, 800);
     }, []);
 
-    const redeemReward = (rewardId: string) => {
+    const redeemReward = (rewardId: string): boolean => {
         const reward = availableRewards.find(r => r.id === rewardId);
         if (reward && userPoints >= reward.points) {
             setUserPoints(prev => prev - reward.points);
             // Handle reward redemption logic
+            return true;
         }
+        return false;
     };
 
     return {
