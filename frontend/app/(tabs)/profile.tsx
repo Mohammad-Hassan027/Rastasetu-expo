@@ -30,9 +30,16 @@ import { useAuth } from "@/hooks/AuthContext";
 import { router } from "expo-router";
 
 export default function ProfileScreen() {
-  const { user: profileUser, stats, updateProfile } = useUserProfile();
+  const {
+    user: profileUser,
+    stats,
+    loading: profileLoading,
+    error: profileError,
+    updateProfile,
+    refreshProfile,
+  } = useUserProfile();
   const insets = useSafeAreaInsets();
-  const { logout, user: authUser, isLoading } = useAuth();
+  const { logout, user: authUser, isLoading: authLoading } = useAuth();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -41,11 +48,43 @@ export default function ProfileScreen() {
   const displayedName = profileUser?.name || authUser?.name || "User";
   const displayedAvatar = profileUser?.avatar || authUser?.avatar;
 
-  // Only show loading state during initial load
-  if (isLoading) {
+  // Show loading state while profile or auth is loading
+  if ((authLoading || profileLoading) && !profileUser && !authUser) {
     return (
-      <View style={[styles.container, styles.loadingContainer]}>
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { paddingTop: insets.top },
+        ]}
+      >
         <ActivityIndicator size="large" color="#22c55e" />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  // Show friendly error state if profile loading failed and no cached user exists
+  if (profileError && !profileUser && !authUser) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.centerContent,
+          { paddingTop: insets.top },
+        ]}
+      >
+        <Text style={styles.errorText}>
+          {profileError || "Failed to load profile"}
+        </Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={refreshProfile}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading profile"
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -586,5 +625,32 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "600",
+  },
+  centerContent: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#d1d5db",
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#ef4444",
+    textAlign: "center",
+    marginBottom: 16,
+    paddingHorizontal: 20,
+  },
+  retryButton: {
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#ffffff",
   },
 });
